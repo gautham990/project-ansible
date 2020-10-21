@@ -1,3 +1,56 @@
 ---
-  - hosts: local
-    become_method: sudo
+- hosts:
+  become_method: sudo
+  become: yes
+  tasks:
+    - name: Install a list of python packages
+      yum:
+        state: present
+        name:
+          - python
+          - python-setuptools
+          - python-dev
+          - build-essential
+          - python-pip
+          - python-mysqldb
+    - name: Install Python Flask dependency
+      pip:
+        name:
+          - flask
+          - flask-mysql
+
+# Install and configure mysql
+    - name: Install mariadb
+      yum:
+        state: present
+        name:
+          - mariadb-server
+    - name: Start mariadb service
+      systemd:
+        name: mariadb
+        state: started
+        enabled: yes
+    - name: Create new mariadb database
+      community.mysql.mysql_db:
+        name: employee_db
+        state: present
+    - name: Create a DB user
+      community.mysql.mysql_user:
+        name: db_user
+        password: Passw0rd
+        priv: '*.*:ALL'
+        state: present
+# Clone repo
+    - name: Clone the repo
+      git:
+        repo: 'https://github.com/gautham990/simple-webapp-flask.git'
+        dest: /home/k8admin/ansible/code
+# Copy the source code to /opt
+    - name: copy the code to /opt
+      copy:
+        src: /home/k8admin/ansible/code/simple-webapp-flask/app.py
+        dest: /opt/app.py
+        mode: '0644'
+# Start the webserver
+    - name: start the webapp
+      command: FLASK_APP=/opt/app.py nohup flask run --host=0.0.0.0 &
